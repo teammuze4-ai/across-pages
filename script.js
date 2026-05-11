@@ -1,21 +1,3 @@
-// script.js 맨 위에 추가 (기존 import가 없다면 맨 위에 넣으세요)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-
-// Firebase 설정 (index.html에 있는 것과 동일)
-const firebaseConfig = {
-    apiKey: "AIzaSyCtnzTQ15D4xW5XuSTX9n9f0Rys88I92mM",
-    authDomain: "across-pages.firebaseapp.com",
-    projectId: "across-pages",
-    storageBucket: "across-pages.firebasestorage.app",
-    messagingSenderId: "988704157197",
-    appId: "1:988704157197:web:638cc1fe8f80f37712af44",
-    measurementId: "G-2QWNYF79B6"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
 // State Management
 const defaultState = {
     isProfileCreated: false,
@@ -172,51 +154,46 @@ function setupEventListeners() {
         imagePreviewContainer.style.display = 'none';
     });
 
-    // Submit Diary (Firebase 연동 버전) (이상이 보이는 즉시 삭제 및 복구)
-    submitDiaryBtn.addEventListener('click', async () => {
+    // Submit Diary
+    submitDiaryBtn.addEventListener('click', () => {
         const content = diaryContent.value.trim();
-        
         if (content.length < 10) {
             alert('Please write a bit more! (At least 10 characters)');
             return;
         }
 
         const activeTopicBtn = document.querySelector('.topic-btn.active');
-        const topicName = activeTopicBtn ? activeTopicBtn.textContent : "General";
+        const topicName = activeTopicBtn.textContent;
 
-        try {
-            // Firebase 저장
-            await addDoc(collection(db, "diaries"), {
-                authorName: state.user.name,
-                authorId: 'user',
-                topic: topicName,
-                content: content,
-                image: currentImageDataUrl,
-                createdAt: serverTimestamp(),
-                reactions: { '👍': 0, '❤️': 0, '😂': 0, '😮': 0 },
-                comments: []
-            });
+        const newDiary = {
+            id: Date.now(),
+            authorId: 'user',
+            authorName: state.user.name,
+            date: 'Just now',
+            topic: topicName,
+            content: content,
+            image: currentImageDataUrl,
+            reactions: { '👍': 0, '❤️': 0, '😂': 0, '😮': 0 },
+            reactedByMe: { '👍': false, '❤️': false, '😂': false, '😮': false },
+            comments: []
+        };
 
-            // UI 초기화
-            state.user.coins += 50;
-            diaryContent.value = '';
-            currentImageDataUrl = null;
-            if (imageUpload) imageUpload.value = '';
-            if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
-            
-            saveState();
-            updateCoinDisplay();
-            showToast('Diary published to server!', 'fa-cloud-upload');
-            
-            // 화면 전환
-            switchView('feed');
-            navLinks.forEach(l => l.classList.remove('active'));
-            if (navLinks[0]) navLinks[0].classList.add('active');
-
-        } catch (e) {
-            console.error("Error adding document: ", e);
-            alert("Firebase 저장 실패!");
-        }
+        state.diaries.unshift(newDiary);
+        state.user.coins += 50;
+        
+        diaryContent.value = '';
+        currentImageDataUrl = null;
+        imageUpload.value = '';
+        imagePreviewContainer.style.display = 'none';
+        
+        saveState();
+        updateCoinDisplay();
+        renderFeed();
+        
+        showToast('Diary published! Earned 50 coins.', 'fa-coins');
+        
+        // Switch to feed
+        navLinks[0].click();
     });
 
     // Shop Tabs
@@ -730,21 +707,3 @@ function renderProfile() {
         });
     }
 }
-
-// 실시간 데이터 불러오기 함수
-function listenToDiaries() {
-    const q = query(collection(db, "diaries"), orderBy("createdAt", "desc"));
-    
-    onSnapshot(q, (querySnapshot) => {
-        const remoteDiaries = [];
-        querySnapshot.forEach((doc) => {
-            remoteDiaries.push({ id: doc.id, ...doc.data() });
-        });
-        
-        // 서버 데이터를 로컬 상태에 동기화
-        state.diaries = remoteDiaries;
-        renderFeed(); // 화면 다시 그리기
-    });
-}
-
-// init() 함수 마지막 줄에 listenToDiaries(); 를 추가하세요!

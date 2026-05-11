@@ -172,46 +172,51 @@ function setupEventListeners() {
         imagePreviewContainer.style.display = 'none';
     });
 
-    // Submit Diary
-    submitDiaryBtn.addEventListener('click', () => {
+    // Submit Diary (Firebase 연동 버전) (이상이 보이는 즉시 삭제 및 복구)
+    submitDiaryBtn.addEventListener('click', async () => {
         const content = diaryContent.value.trim();
+        
         if (content.length < 10) {
             alert('Please write a bit more! (At least 10 characters)');
             return;
         }
 
         const activeTopicBtn = document.querySelector('.topic-btn.active');
-        const topicName = activeTopicBtn.textContent;
+        const topicName = activeTopicBtn ? activeTopicBtn.textContent : "General";
 
-        const newDiary = {
-            id: Date.now(),
-            authorId: 'user',
-            authorName: state.user.name,
-            date: 'Just now',
-            topic: topicName,
-            content: content,
-            image: currentImageDataUrl,
-            reactions: { '👍': 0, '❤️': 0, '😂': 0, '😮': 0 },
-            reactedByMe: { '👍': false, '❤️': false, '😂': false, '😮': false },
-            comments: []
-        };
+        try {
+            // Firebase 저장
+            await addDoc(collection(db, "diaries"), {
+                authorName: state.user.name,
+                authorId: 'user',
+                topic: topicName,
+                content: content,
+                image: currentImageDataUrl,
+                createdAt: serverTimestamp(),
+                reactions: { '👍': 0, '❤️': 0, '😂': 0, '😮': 0 },
+                comments: []
+            });
 
-        state.diaries.unshift(newDiary);
-        state.user.coins += 50;
-        
-        diaryContent.value = '';
-        currentImageDataUrl = null;
-        imageUpload.value = '';
-        imagePreviewContainer.style.display = 'none';
-        
-        saveState();
-        updateCoinDisplay();
-        renderFeed();
-        
-        showToast('Diary published! Earned 50 coins.', 'fa-coins');
-        
-        // Switch to feed
-        navLinks[0].click();
+            // UI 초기화
+            state.user.coins += 50;
+            diaryContent.value = '';
+            currentImageDataUrl = null;
+            if (imageUpload) imageUpload.value = '';
+            if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
+            
+            saveState();
+            updateCoinDisplay();
+            showToast('Diary published to server!', 'fa-cloud-upload');
+            
+            // 화면 전환
+            switchView('feed');
+            navLinks.forEach(l => l.classList.remove('active'));
+            if (navLinks[0]) navLinks[0].classList.add('active');
+
+        } catch (e) {
+            console.error("Error adding document: ", e);
+            alert("Firebase 저장 실패!");
+        }
     });
 
     // Shop Tabs

@@ -1,3 +1,21 @@
+// script.js 맨 위에 추가 (기존 import가 없다면 맨 위에 넣으세요)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+// Firebase 설정 (index.html에 있는 것과 동일)
+const firebaseConfig = {
+    apiKey: "AIzaSyCtnzTQ15D4xW5XuSTX9n9f0Rys88I92mM",
+    authDomain: "across-pages.firebaseapp.com",
+    projectId: "across-pages",
+    storageBucket: "across-pages.firebasestorage.app",
+    messagingSenderId: "988704157197",
+    appId: "1:988704157197:web:638cc1fe8f80f37712af44",
+    measurementId: "G-2QWNYF79B6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 // State Management
 const defaultState = {
     isProfileCreated: false,
@@ -707,3 +725,21 @@ function renderProfile() {
         });
     }
 }
+
+// 실시간 데이터 불러오기 함수
+function listenToDiaries() {
+    const q = query(collection(db, "diaries"), orderBy("createdAt", "desc"));
+    
+    onSnapshot(q, (querySnapshot) => {
+        const remoteDiaries = [];
+        querySnapshot.forEach((doc) => {
+            remoteDiaries.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // 서버 데이터를 로컬 상태에 동기화
+        state.diaries = remoteDiaries;
+        renderFeed(); // 화면 다시 그리기
+    });
+}
+
+// init() 함수 마지막 줄에 listenToDiaries(); 를 추가하세요!

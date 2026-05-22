@@ -11,7 +11,7 @@
     --accent-hover: #db2777;
     --coin-color: #fbbf24;
     --success-color: #10b981;
-    
+
     --glass-border: rgba(255, 255, 255, 0.1);
     --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
@@ -25,7 +25,7 @@
 
 body {
     background-color: var(--bg-main);
-    background-image: 
+    background-image:
         radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
     background-attachment: fixed;
@@ -188,6 +188,7 @@ body {
 .content-area::-webkit-scrollbar {
     width: 8px;
 }
+
 .content-area::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
@@ -203,8 +204,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .view-header {
@@ -530,7 +538,7 @@ body {
     overflow: hidden;
     margin-bottom: 2rem;
     border: 4px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .avatar-large img {
@@ -687,7 +695,7 @@ body {
     color: white;
     padding: 16px 24px;
     border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     transform: translateX(150%);
     transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     z-index: 100;
@@ -806,9 +814,12 @@ body {
 /* Onboarding */
 .onboarding-overlay {
     position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     background: var(--bg-main);
-    background-image: 
+    background-image:
         radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.2) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.2) 0px, transparent 50%);
     z-index: 1000;
@@ -820,7 +831,7 @@ body {
 .onboarding-card {
     width: 100%;
     max-width: 450px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 
 .role-option.selected {
@@ -829,5 +840,5 @@ body {
 }
 
 .role-option:hover {
-    background: rgba(255,255,255,0.1) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
 }

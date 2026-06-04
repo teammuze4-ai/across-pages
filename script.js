@@ -10,7 +10,6 @@ const firebaseConfig = {
 // Initialize Firebase using Compat SDK
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const storage = firebase.storage();
 
 // State Management
 const defaultState = {
@@ -178,25 +177,68 @@ function setupEventListeners() {
         setRandomPrompt(activeTopic);
     });
 
+window.compressImage = function(file, callback) {
+    if (file.type.startsWith('video/')) {
+        alert('Videos are no longer supported due to database size limits. Please upload an image instead.');
+        callback(null);
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+            } else {
+                if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            
+            // Check size roughly
+            if (dataUrl.length > 900000) { // ~900KB base64 is ~675KB binary
+                alert('Even after compression, the image is too large for the free database. Please choose a smaller image.');
+                callback(null);
+                return;
+            }
+            callback(dataUrl);
+        }
+        img.src = e.target.result;
+    }
+    reader.readAsDataURL(file);
+}
+
     // Image/Video Upload
     imageUpload.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
-            currentImageFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                currentImageDataUrl = e.target.result;
-                // Previews are complex for video, for now just show a generic icon or the video element
-                if (file.type.startsWith('video/')) {
-                    imagePreviewContainer.innerHTML = `<video src="${currentImageDataUrl}" style="max-width:200px;" controls></video> <button id="remove-image-btn" class="remove-btn"><i class="fa-solid fa-xmark"></i></button>`;
-                } else {
-                    imagePreviewContainer.innerHTML = `<img id="image-preview" src="${currentImageDataUrl}" alt="Preview"> <button id="remove-image-btn" class="remove-btn"><i class="fa-solid fa-xmark"></i></button>`;
+            window.compressImage(file, (dataUrl) => {
+                if (!dataUrl) {
+                    removeUpload();
+                    return;
                 }
-                
+                currentImageDataUrl = dataUrl;
+                currentImageFile = null;
+                imagePreviewContainer.innerHTML = `<img id="image-preview" src="${currentImageDataUrl}" alt="Preview"> <button id="remove-image-btn" class="remove-btn"><i class="fa-solid fa-xmark"></i></button>`;
                 document.getElementById('remove-image-btn').addEventListener('click', removeUpload);
                 imagePreviewContainer.style.display = 'inline-block';
-            };
-            reader.readAsDataURL(file);
+            });
         }
     });
 
@@ -220,27 +262,6 @@ function setupEventListeners() {
         const activeTopicBtn = document.querySelector('.topic-btn.active');
         const topicName = activeTopicBtn.textContent;
         
-        let uploadedUrl = null;
-        let isVideo = false;
-        
-        submitDiaryBtn.disabled = true;
-
-        if (currentImageFile) {
-            try {
-                showToast('Uploading media to Storage...', 'fa-spinner fa-spin');
-                const ext = currentImageFile.name.split('.').pop();
-                const storageRef = storage.ref(`diaries/${Date.now()}_${state.user.name}.${ext}`);
-                await storageRef.put(currentImageFile);
-                uploadedUrl = await storageRef.getDownloadURL();
-                isVideo = currentImageFile.type.startsWith('video/');
-            } catch (err) {
-                console.error(err);
-                alert('Media upload failed!');
-                submitDiaryBtn.disabled = false;
-                return;
-            }
-        }
-
         const newDiary = {
             authorName: state.user.name,
             authorRole: state.user.role,
@@ -249,8 +270,8 @@ function setupEventListeners() {
             timestamp: Date.now(),
             topic: topicName,
             content: content,
-            image: uploadedUrl,
-            isVideo: isVideo,
+            image: currentImageDataUrl || null,
+            isVideo: false,
             reactions: { '👍': 0, '❤️': 0, '😂': 0, '😮': 0 },
             reactedUsers: {},
             comments: []
@@ -551,19 +572,16 @@ window.editDiary = function (diaryId) {
 window.handleEditImageUpload = function (e, diaryId) {
     const file = e.target.files[0];
     if (file) {
-        window.editFiles[diaryId] = file;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            window.tempEditImages[diaryId] = ev.target.result;
-            const container = document.getElementById(`edit-image-preview-container-${diaryId}`);
-            if (file.type.startsWith('video/')) {
-                container.innerHTML = `<video id="edit-image-preview-${diaryId}" src="${ev.target.result}" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;" controls></video> <button onclick="removeTempEditImage('${diaryId}')" style="position: absolute; top: 5px; left: 170px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-xmark"></i></button>`;
-            } else {
-                container.innerHTML = `<img id="edit-image-preview-${diaryId}" src="${ev.target.result}" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;"> <button onclick="removeTempEditImage('${diaryId}')" style="position: absolute; top: 5px; left: 170px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-xmark"></i></button>`;
+        window.compressImage(file, (dataUrl) => {
+            if (!dataUrl) {
+                removeTempEditImage(diaryId);
+                return;
             }
+            window.tempEditImages[diaryId] = dataUrl;
+            const container = document.getElementById(`edit-image-preview-container-${diaryId}`);
+            container.innerHTML = `<img id="edit-image-preview-${diaryId}" src="${dataUrl}" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;"> <button onclick="removeTempEditImage('${diaryId}')" style="position: absolute; top: 5px; left: 170px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-xmark"></i></button>`;
             if (container) container.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+        });
     }
 }
 
@@ -592,33 +610,12 @@ window.saveEdit = async function (diaryId) {
         if(btn) btn.disabled = true;
         
         let uploadedUrl = window.tempEditImages[diaryId];
-        let isVideo = false;
-        
-        if (window.editFiles[diaryId]) {
-            try {
-                showToast('Uploading media to Storage...', 'fa-spinner fa-spin');
-                const file = window.editFiles[diaryId];
-                const ext = file.name.split('.').pop();
-                const storageRef = storage.ref(`diaries/${Date.now()}_edit_${state.user.name}.${ext}`);
-                await storageRef.put(file);
-                uploadedUrl = await storageRef.getDownloadURL();
-                isVideo = file.type.startsWith('video/');
-            } catch (err) {
-                console.error(err);
-                alert('Media upload failed!');
-                if(btn) btn.disabled = false;
-                return;
-            }
-        } else {
-            const diary = state.diaries.find(d => d.id === diaryId);
-            if (diary) isVideo = diary.isVideo;
-        }
 
         try {
             await db.collection("diaries").doc(diaryId).update({
                 content: newContent,
                 image: uploadedUrl || null,
-                isVideo: isVideo
+                isVideo: false
             });
             delete window.tempEditImages[diaryId];
             delete window.editFiles[diaryId];

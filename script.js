@@ -813,7 +813,7 @@ window.handleShopAction = async function (itemId) {
 
 // Start
 init();
-//
+
 // Onboarding Logic
 function setupOnboarding() {
     const roleOptions = document.querySelectorAll('.role-option');

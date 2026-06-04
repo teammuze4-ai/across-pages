@@ -23,8 +23,11 @@ const defaultState = {
         equipped: {
             clothes: null,
             accessories: null,
-            skin: null,
-            eyes: null
+            skinHex: 'ffdbb4',
+            hairHex: '000000',
+            clothesHex: '262e33',
+            eyes: null,
+            mouth: null
         },
         purchased: []
     },
@@ -53,15 +56,15 @@ const defaultState = {
         { id: 'c1', name: 'Basic Hoodie', price: 0, category: 'clothes', icon: 'fa-shirt', seedModifier: 'hoodie' },
         { id: 'c2', name: 'Hanbok', price: 100, category: 'clothes', icon: 'fa-user-tie', seedModifier: 'blazerAndShirt' },
         { id: 'c3', name: 'Streetwear', price: 150, category: 'clothes', icon: 'fa-vest', seedModifier: 'overall' },
-        { id: 'a1', name: 'Glasses', price: 50, category: 'accessories', icon: 'fa-glasses', seedModifier: 'kurt' },
+        { id: 'a1', name: 'Glasses', price: 50, category: 'accessories', icon: 'fa-glasses', seedModifier: 'prescription02' },
         { id: 'a2', name: 'Sunglasses', price: 80, category: 'accessories', icon: 'fa-sunglasses', seedModifier: 'wayfarers' },
         { id: 'a3', name: 'Cap', price: 120, category: 'accessories', icon: 'fa-hat-cowboy', seedModifier: 'hat' },
-        { id: 's1', name: 'Light Skin', price: 0, category: 'skin', icon: 'fa-palette', seedModifier: 'ffdbb4' },
-        { id: 's2', name: 'Medium Skin', price: 0, category: 'skin', icon: 'fa-palette', seedModifier: 'd08b5b' },
-        { id: 's3', name: 'Dark Skin', price: 0, category: 'skin', icon: 'fa-palette', seedModifier: '614335' },
-        { id: 'e1', name: 'Happy Eyes', price: 0, category: 'eyes', icon: 'fa-eye', seedModifier: 'happy' },
-        { id: 'e2', name: 'Heart Eyes', price: 0, category: 'eyes', icon: 'fa-heart', seedModifier: 'hearts' },
-        { id: 'e3', name: 'Wink Eyes', price: 0, category: 'eyes', icon: 'fa-face-wink', seedModifier: 'wink' }
+        { id: 'e1', name: 'Happy Eyes', price: 0, category: 'expression', icon: 'fa-eye', type: 'eyes', seedModifier: 'happy' },
+        { id: 'e2', name: 'Wink Eyes', price: 0, category: 'expression', icon: 'fa-face-wink', type: 'eyes', seedModifier: 'wink' },
+        { id: 'e4', name: 'Open Eyes', price: 0, category: 'expression', icon: 'fa-eye', type: 'eyes', seedModifier: 'default' },
+        { id: 'm1', name: 'Happy Mouth', price: 0, category: 'expression', icon: 'fa-face-smile', type: 'mouth', seedModifier: 'smile' },
+        { id: 'm2', name: 'Sad Mouth', price: 0, category: 'expression', icon: 'fa-face-frown', type: 'mouth', seedModifier: 'sad' },
+        { id: 'm3', name: 'Smile Mouth', price: 0, category: 'expression', icon: 'fa-face-grin', type: 'mouth', seedModifier: 'twinkle' }
     ]
 };
 
@@ -69,8 +72,10 @@ let state;
 try {
     const saved = localStorage.getItem('acrossPagesState');
     state = saved ? JSON.parse(saved) : defaultState;
-    if (!state.user.equipped.skin) state.user.equipped.skin = null;
-    if (!state.user.equipped.eyes) state.user.equipped.eyes = null;
+    if (!state.user.equipped.skinHex) state.user.equipped.skinHex = 'ffdbb4';
+    if (!state.user.equipped.hairHex) state.user.equipped.hairHex = '000000';
+    if (!state.user.equipped.clothesHex) state.user.equipped.clothesHex = '262e33';
+    if (state.user.equipped.mouth === undefined) state.user.equipped.mouth = null;
     
     // 로컬 스토리지의 구형 상점 데이터 덮어쓰기 (새 아이템 강제 업데이트)
     state.shopItems = defaultState.shopItems;
@@ -239,7 +244,7 @@ function setupEventListeners() {
         const newDiary = {
             authorName: state.user.name,
             authorRole: state.user.role,
-            authorAvatarUrl: getAvatarUrl(state.user.avatarSeed || 'Felix', state.user.equipped.clothes, state.user.equipped.accessories, state.user.equipped.skin, state.user.equipped.eyes),
+            authorAvatarUrl: getAvatarUrl(state.user.avatarSeed || 'Felix', state.user.equipped),
             date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             timestamp: Date.now(),
             topic: topicName,
@@ -301,35 +306,38 @@ function updateCoinDisplay() {
     coinBalances.forEach(el => el.textContent = state.user.coins);
 }
 
-function getAvatarUrl(seed, clothes, accessories, skin, eyes) {
+function getAvatarUrl(seed, eq) {
+    if (!eq) eq = state.user.equipped; // fallback
     let url = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4&accessoriesProbability=100`;
-    if (clothes) {
-        const item = state.shopItems.find(i => i.id === clothes);
+    
+    if (eq.skinHex) url += `&skinColor=${eq.skinHex.replace('#', '')}`;
+    if (eq.hairHex) url += `&hairColor=${eq.hairHex.replace('#', '')}`;
+    if (eq.clothesHex) url += `&clothesColor=${eq.clothesHex.replace('#', '')}`;
+
+    if (eq.clothes) {
+        const item = state.shopItems.find(i => i.id === eq.clothes);
         if (item && item.seedModifier) url += `&clothing=${item.seedModifier}`;
     }
-    if (accessories) {
-        const item = state.shopItems.find(i => i.id === accessories);
+    if (eq.accessories) {
+        const item = state.shopItems.find(i => i.id === eq.accessories);
         if (item && item.seedModifier) {
-            if (item.id === 'a3') {
-                url += `&top=${item.seedModifier}`;
-            } else {
-                url += `&accessories=${item.seedModifier}`;
-            }
+            if (item.id === 'a3') url += `&top=${item.seedModifier}`;
+            else url += `&accessories=${item.seedModifier}`;
         }
     }
-    if (skin) {
-        const item = state.shopItems.find(i => i.id === skin);
-        if (item && item.seedModifier) url += `&skinColor=${item.seedModifier}`;
-    }
-    if (eyes) {
-        const item = state.shopItems.find(i => i.id === eyes);
+    if (eq.eyes) {
+        const item = state.shopItems.find(i => i.id === eq.eyes);
         if (item && item.seedModifier) url += `&eyes=${item.seedModifier}`;
+    }
+    if (eq.mouth) {
+        const item = state.shopItems.find(i => i.id === eq.mouth);
+        if (item && item.seedModifier) url += `&mouth=${item.seedModifier}`;
     }
     return url;
 }
 
 function updateAvatar() {
-    const url = getAvatarUrl(state.user.avatarSeed || 'Felix', state.user.equipped.clothes, state.user.equipped.accessories, state.user.equipped.skin, state.user.equipped.eyes);
+    const url = getAvatarUrl(state.user.avatarSeed || 'Felix', state.user.equipped);
     document.querySelectorAll('#avatar-img, #large-avatar-img, #profile-avatar-img').forEach(img => {
         if (img) img.src = url;
     });
@@ -376,6 +384,7 @@ window.renderFeed = function() {
                         <div class="entry-topic">${diary.topic}</div>
                         ${isUser ? `
                             <div class="entry-actions" style="display: flex; gap: 8px;">
+                                <button class="icon-btn edit-btn" onclick="editDiary('${diary.id}')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-pen"></i></button>
                                 <button class="icon-btn delete-btn" onclick="deleteDiary('${diary.id}')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         ` : ''}
@@ -449,7 +458,7 @@ window.addComment = async function (diaryId) {
     const newComments = [...(diary.comments || []), {
         id: Date.now().toString(),
         author: state.user.name,
-        authorAvatarUrl: getAvatarUrl(state.user.avatarSeed || 'Felix', state.user.equipped.clothes, state.user.equipped.accessories, state.user.equipped.skin, state.user.equipped.eyes),
+        authorAvatarUrl: getAvatarUrl(state.user.avatarSeed || 'Felix', state.user.equipped),
         text: text
     }];
 
@@ -496,6 +505,129 @@ window.deleteDiary = async function (diaryId) {
         } catch (e) {
             console.error("Error deleting diary: ", e);
         }
+    }
+}
+
+window.tempEditImages = {};
+window.editFiles = {};
+
+window.editDiary = function (diaryId) {
+    const diary = state.diaries.find(d => d.id === diaryId);
+    if (!diary) return;
+
+    const textDiv = document.getElementById(`diary-text-${diaryId}`);
+    if (!textDiv) return;
+
+    window.tempEditImages[diaryId] = diary.image;
+
+    const currentContent = diary.content.replace(/"/g, '&quot;');
+    textDiv.innerHTML = `
+        <textarea id="edit-content-${diaryId}" style="width: 100%; min-height: 100px; background: rgba(0,0,0,0.2); color: white; border: 1px solid var(--primary-color); border-radius: 8px; padding: 10px; margin-bottom: 10px; font-family: inherit; font-size: 1rem;">${diary.content}</textarea>
+        
+        <div style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+            <div style="margin-bottom: 10px; font-size: 0.95rem; color: var(--text-secondary);">Attached Photo/Video</div>
+            <div id="edit-image-preview-container-${diaryId}" style="display: ${diary.image ? 'block' : 'none'}; position: relative; margin-bottom: 10px;">
+                ${diary.isVideo ? `<video id="edit-image-preview-${diaryId}" src="${diary.image || ''}" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;" controls></video>` : `<img id="edit-image-preview-${diaryId}" src="${diary.image || ''}" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;">`}
+                <button onclick="removeTempEditImage('${diaryId}')" style="position: absolute; top: 5px; left: 170px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div>
+                <label for="edit-image-upload-${diaryId}" class="secondary-btn" style="cursor: pointer; display: inline-block; font-size: 0.85rem; padding: 6px 12px;">
+                    <i class="fa-solid fa-image"></i> Change / Add Media
+                </label>
+                <input type="file" id="edit-image-upload-${diaryId}" accept="image/*,video/*" style="display: none;" onchange="handleEditImageUpload(event, '${diaryId}')">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button class="primary-btn" style="padding: 6px 12px; font-size: 0.9rem;" id="save-edit-btn-${diaryId}" onclick="saveEdit('${diaryId}')">Save</button>
+            <button class="secondary-btn" style="padding: 6px 12px; font-size: 0.9rem;" onclick="cancelEdit('${diaryId}')">Cancel</button>
+        </div>
+    `;
+
+    const existingImg = document.getElementById(`entry-image-${diaryId}`);
+    if (existingImg) existingImg.style.display = 'none';
+}
+
+window.handleEditImageUpload = function (e, diaryId) {
+    const file = e.target.files[0];
+    if (file) {
+        window.editFiles[diaryId] = file;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            window.tempEditImages[diaryId] = ev.target.result;
+            const container = document.getElementById(`edit-image-preview-container-${diaryId}`);
+            if (file.type.startsWith('video/')) {
+                container.innerHTML = `<video id="edit-image-preview-${diaryId}" src="${ev.target.result}" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;" controls></video> <button onclick="removeTempEditImage('${diaryId}')" style="position: absolute; top: 5px; left: 170px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-xmark"></i></button>`;
+            } else {
+                container.innerHTML = `<img id="edit-image-preview-${diaryId}" src="${ev.target.result}" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;"> <button onclick="removeTempEditImage('${diaryId}')" style="position: absolute; top: 5px; left: 170px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-xmark"></i></button>`;
+            }
+            if (container) container.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+window.removeTempEditImage = function (diaryId) {
+    window.tempEditImages[diaryId] = null;
+    window.editFiles[diaryId] = null;
+    const container = document.getElementById(`edit-image-preview-container-${diaryId}`);
+    if (container) container.style.display = 'none';
+    const input = document.getElementById(`edit-image-upload-${diaryId}`);
+    if (input) input.value = '';
+}
+
+window.cancelEdit = function (diaryId) {
+    delete window.tempEditImages[diaryId];
+    delete window.editFiles[diaryId];
+    renderFeed();
+}
+
+window.saveEdit = async function (diaryId) {
+    const textarea = document.getElementById(`edit-content-${diaryId}`);
+    if (!textarea) return;
+
+    const newContent = textarea.value.trim();
+    if (newContent.length > 0) {
+        const btn = document.getElementById(`save-edit-btn-${diaryId}`);
+        if(btn) btn.disabled = true;
+        
+        let uploadedUrl = window.tempEditImages[diaryId];
+        let isVideo = false;
+        
+        if (window.editFiles[diaryId]) {
+            try {
+                showToast('Uploading media to Storage...', 'fa-spinner fa-spin');
+                const file = window.editFiles[diaryId];
+                const ext = file.name.split('.').pop();
+                const storageRef = storage.ref(`diaries/${Date.now()}_edit_${state.user.name}.${ext}`);
+                await storageRef.put(file);
+                uploadedUrl = await storageRef.getDownloadURL();
+                isVideo = file.type.startsWith('video/');
+            } catch (err) {
+                console.error(err);
+                alert('Media upload failed!');
+                if(btn) btn.disabled = false;
+                return;
+            }
+        } else {
+            const diary = state.diaries.find(d => d.id === diaryId);
+            if (diary) isVideo = diary.isVideo;
+        }
+
+        try {
+            await db.collection("diaries").doc(diaryId).update({
+                content: newContent,
+                image: uploadedUrl || null,
+                isVideo: isVideo
+            });
+            delete window.tempEditImages[diaryId];
+            delete window.editFiles[diaryId];
+            showToast('Diary updated!', 'fa-check');
+        } catch (e) {
+            console.error("Error updating diary: ", e);
+        }
+    } else {
+        alert('Content cannot be empty.');
     }
 }
 
@@ -563,6 +695,62 @@ window.saveEditComment = async function (diaryId, commentId) {
 // Render Shop
 function renderShop(category) {
     shopItemsContainer.innerHTML = '';
+    
+    if (category === 'colors') {
+        const eq = state.user.equipped;
+        shopItemsContainer.innerHTML = `
+            <div style="padding: 1rem; width: 100%;">
+                <h3 style="margin-bottom: 1.5rem;">Color Palette <i class="fa-solid fa-palette"></i></h3>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <label style="font-weight: 600;">Skin Color</label>
+                            <input type="color" id="color-skin" value="#${eq.skinHex || 'ffdbb4'}" style="width: 50px; height: 50px; border: none; border-radius: 8px; cursor: pointer; padding: 0;">
+                        </div>
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 5px;">
+                            <button class="preset-color" data-type="skin" data-hex="ffdbb4" style="width: 24px; height: 24px; border-radius: 50%; background: #ffdbb4; border: 2px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                            <button class="preset-color" data-type="skin" data-hex="d08b5b" style="width: 24px; height: 24px; border-radius: 50%; background: #d08b5b; border: 2px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                            <button class="preset-color" data-type="skin" data-hex="614335" style="width: 24px; height: 24px; border-radius: 50%; background: #614335; border: 2px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 12px;">
+                        <label style="font-weight: 600;">Hair Color</label>
+                        <input type="color" id="color-hair" value="#${eq.hairHex || '000000'}" style="width: 50px; height: 50px; border: none; border-radius: 8px; cursor: pointer; padding: 0;">
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 12px;">
+                        <label style="font-weight: 600;">Clothes Color</label>
+                        <input type="color" id="color-clothes" value="#${eq.clothesHex || '262e33'}" style="width: 50px; height: 50px; border: none; border-radius: 8px; cursor: pointer; padding: 0;">
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        ['skin', 'hair', 'clothes'].forEach(type => {
+            const input = document.getElementById(`color-${type}`);
+            input.addEventListener('input', (e) => {
+                state.user.equipped[`${type}Hex`] = e.target.value.replace('#', '');
+                updateAvatar();
+            });
+            input.addEventListener('change', () => {
+                saveState();
+                showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} color saved!`, 'fa-palette');
+            });
+        });
+        
+        document.querySelectorAll('.preset-color').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const type = e.currentTarget.dataset.type;
+                const hex = e.currentTarget.dataset.hex;
+                document.getElementById(`color-${type}`).value = '#' + hex;
+                state.user.equipped[`${type}Hex`] = hex;
+                updateAvatar();
+                saveState();
+                showToast('Preset color applied!', 'fa-palette');
+            });
+        });
+        return;
+    }
+
     const items = state.shopItems.filter(item => item.category === category);
 
     items.forEach(item => {
@@ -603,7 +791,11 @@ window.handleShopAction = async function (itemId) {
 
     if (isPurchased) {
         // Equip
-        state.user.equipped[item.category] = itemId;
+        if (item.category === 'expression' && item.type) {
+            state.user.equipped[item.type] = itemId;
+        } else {
+            state.user.equipped[item.category] = itemId;
+        }
         saveState();
         updateAvatar();
         renderShop(item.category);
@@ -705,7 +897,7 @@ window.renderProfile = function() {
         list.innerHTML = '<div style="color: var(--text-secondary); padding: 2rem; text-align: center;">No diaries written yet.</div>';
     } else {
         myDiaries.forEach(diary => {
-            const url = diary.authorAvatarUrl || getAvatarUrl(state.user.avatarSeed || 'Felix', state.user.equipped.clothes, state.user.equipped.accessories, state.user.equipped.skin, state.user.equipped.eyes);
+            const url = diary.authorAvatarUrl || getAvatarUrl(state.user.avatarSeed || 'Felix', state.user.equipped);
             const html = `
                 <article class="diary-entry" style="margin-bottom: 1.5rem;">
                     <div class="entry-header">
